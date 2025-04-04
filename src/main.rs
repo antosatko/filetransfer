@@ -6,6 +6,7 @@ use std::{
     time::Instant,
 };
 
+use sha2::{Digest, Sha256};
 use utils::{parse_args, ProgressBar};
 
 const LENGTH: &str = "Content-Length: ";
@@ -46,9 +47,29 @@ fn main() {
     data.save(&args.output).unwrap();
     println!("Data written to {:?}", args.output);
 
-    println!(
-        "Please manually compare the SHA-256 hash printed by the server with the downloaded file"
-    );
+    match args.checksum {
+        None => {
+            println!(
+                "Please manually compare the SHA-256 hash printed by the server with the downloaded file"
+            );
+        }
+        Some(sum) => {
+            let mut hasher = Sha256::new();
+            for part in &data.data {
+                hasher.update(part.data());
+            }
+            let downloaded_sum = hasher.finalize();
+            let downloaded_hex = format!("{:x}", downloaded_sum);
+    
+            if downloaded_hex == sum {
+                println!("Checksum matches!");
+            } else {
+                println!("Checksum mismatch!");
+                println!("Expected: {}", sum);
+                println!("Downloaded: {}", downloaded_hex);
+            }
+        }
+    }
 }
 
 struct Client {
@@ -232,6 +253,7 @@ mod utils {
     pub struct Args {
         pub address: String,
         pub output: PathBuf,
+        pub checksum: Option<String>
     }
 
     pub fn parse_args() -> Args {
@@ -239,6 +261,7 @@ mod utils {
         let mut this = Args {
             address: String::from("127.0.0.1:8080"),
             output: PathBuf::from("data"),
+            checksum: None,
         };
 
         while let Some(arg) = args.next() {
@@ -251,9 +274,13 @@ mod utils {
                     let path = args.next().expect("Expected path after -o");
                     this.output = path.into();
                 }
+                "-c" => {
+                    let sum = args.next().expect("Expected sha256 checksum after -c");
+                    this.checksum = Some(sum)
+                }
                 "-h" => {
                     println!("Application that downloads the binary data from the glitchy server");
-                    println!("Usage: myftp [-a address] [-o output_path]");
+                    println!("Usage: myftp [-a address] [-o output_path] [-c sha2_checksum]");
                     std::process::exit(0);
                 }
                 _ => panic!("Unknown argument: {}", arg),
