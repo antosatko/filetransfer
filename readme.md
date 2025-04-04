@@ -23,7 +23,7 @@ The application takes the following optional arguments:
 ### Example
 
 ```bash
-myftp -a 192.168.1.10:8080 -o download.bin -c d2c76a4a...
+filetransfer -a 192.168.1.10:8080 -o download.bin -c d2c76a4a...
 ```
 
 ## Checksum Verification
